@@ -18,6 +18,7 @@ library(psych)
 
 # Bring in the csv file for use
 df1 <- read_csv("D:\\8525\\Section2\\TIM8525.csv")
+df1 <- read_csv("C:\\Users\\tony.dunsworth\\OneDrive - City of Alexandria\\GitHub\\TIM8525\\Section2\\TIM8525.csv")
 
 # Convert columns to factors
 df1$CollarColor <- as_factor(df1$CollarColor)
@@ -87,9 +88,34 @@ df1 %>%
   group_by(CollarColor) %>%
   get_summary_stats(ValuesDomain, MediatorDomain, FulfillmentDomain, type = "full")
 
-# Check for outliers the quick way
+# Establish the number of respondents per Collar Colour
+df1 %>% group_by(CollarColor) %>% summarise(N = n())
+
+# Indetify univariate outliers
+df1 %>% group_by(CollarColor) %>% identify_outliers(ValuesDomain)
+df1 %>% group_by(CollarColor) %>% identify_outliers(MediatorDomain)
+df1 %>% group_by(CollarColor) %>% identify_outliers(FulfillmentDomain)
+
+# Attempt to detect multivariate outliers - Not working directly from here. Will have to find another way to run this later.
 df1 %>%
-  group_by(Species) %>%
-  mahalanobis_distance(-id) %>%
+  group_by(CollarColor) %>%
+  mahalanobis_distance(-ResponseId) %>%
   filter(is.outlier == TRUE) %>%
   as.data.frame()
+
+# Check normality assumptions
+df1 %>% group_by(CollarColor) %>% shapiro_test(ValuesDomain, MediatorDomain, FulfillmentDomain) %>% arrange(variable)
+
+ggqqplot(df1, "ValuesDomain", facet.by = "CollarColor",
+         ylab = "Values Domain", ggtheme = theme_light())
+ggqqplot(df1, "MediatorDomain", facet.by = "CollarColor",
+         ylab = "Mediator Domain", ggtheme = theme_light())
+ggqqplot(df1, "FulfillmentDomain", facet.by = "CollarColor",
+         ylab = "Fulfillment Domain", ggtheme = theme_light())
+
+# Check multivariate normality
+df1 %>%
+  select(ValuesDomain, MediatorDomain, FulfillmentDomain) %>%
+  mshapiro_test()
+
+df1 %>% cor_test(ValuesDomain, MediatorDomain, FulfillmentDomain)
