@@ -48,7 +48,7 @@ df1 <- na.omit(df1)
 # Remove rows where the respondent gave the same value for all of the questions
 df1 <- df1[!(df1$ZeroVar == 1), ]
 
-# First basaic information
+# First basic information
 summary(df1)
 describe(df1)
 describe(df1$ValuesDomain)
