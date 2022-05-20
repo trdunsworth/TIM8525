@@ -14,6 +14,8 @@ install.packages("multcomp")
 install.packages("emmeans")
 install.packages("phia")
 install.packages("RVAideMemoire")
+install.packages("DiscriMiner")
+install.packages("sur")
 
 # Library Management
 library(tidyverse)
@@ -30,6 +32,8 @@ library(multcomp)
 library(emmeans)
 library(phia)
 library(RVAideMemoire)
+library(DiscriMiner)
+library(sur)
 
 # Bring in the csv file for use
 dfWk4 <- read_csv("D:\\8525\\Section2\\TIM8525.csv")
@@ -151,7 +155,7 @@ dfWk4 <- subset(dfWk4, dfWk4$FulfillmentDomain > max(fulfillmentOutlier))
 dfWk4a <- subset(dfWk4, select=c("Gender","CollarColor","ValuesDomain","MediatorDomain","FulfillmentDomain"))
 
 dfWk4a_new <- dfWk4a %>% mutate_each_(list(~scale(.) %>% as.vector),
-                                  vars = c("ValuesDomain","MediatorDomain","FulfillmentDomain"))
+      vars = c("ValuesDomain","MediatorDomain","FulfillmentDomain"))
 dep_var <- cbind(dfWk4a_new$ValuesDomain, dfWk4a_new$MediatorDomain, dfWk4a_new$FulfillmentDomain)
 
 # First basic information
@@ -249,7 +253,7 @@ ggqqplot(dfWk4a_new, "FulfillmentDomain", facet.by = "CollarColor",
 
 # Check multivariate normality
 dfWk4a_new %>%
-  select(ValuesDomain, MediatorDomain, FulfillmentDomain) %>%
+  dplyr::select(ValuesDomain, MediatorDomain, FulfillmentDomain) %>%
   mshapiro_test()
 
 dfWk4a_new %>% cor_test(ValuesDomain, MediatorDomain, FulfillmentDomain)
@@ -259,13 +263,34 @@ dfWk4a_new %>% cor_mat(ValuesDomain, MediatorDomain, FulfillmentDomain)
 
 # Create scatterplot matrix
 results2 <- dfWk4a_new %>% 
-  select(ValuesDomain, MediatorDomain, FulfillmentDomain, CollarColor, Gender) %>% 
+  dplyr::select(ValuesDomain, MediatorDomain, FulfillmentDomain, CollarColor, Gender) %>% 
   group_by(CollarColor) %>%
   doo(~ggpairs(.) + theme_light(), result = "plots")
-results
-results$plots
+results2
+results2$plots
+
+levenes.test(dfWk4a_new$ValuesDomain, dfWk4a_new$CollarColor)
+levenes.test(dfWk4a_new$ValuesDomain, dfWk4a_new$Gender)
 
 # Factorial Manova
+attach(dfWk4a_new)
+y <- cbind(ValuesDomain, MediatorDomain, FulfillmentDomain)
 summary(model_b)
+
 manova_f <- Manova(model_b, test.statistic = "Pillai")
-summary(manova_f)
+manova_f2 <- stats::manova(y ~ CollarColor + Gender + CollarColor*Gender)
+summary(manova_f2)
+summary.aov(manova_f2)
+
+wk4_dda1 <- desDA(y, dfWk4a_new$CollarColor)
+wk4_dda1
+
+wk4_dda2 <- desDA(y, dfWk4a_new$CollarColor, covar = "total")
+wk4_dda2
+
+dfWk4a_new$f1 = wk4_dda1$scores[,1]
+dfWk4a_new$f2 = wk4_dda1$scores[,2]
+ggplot(data=dfWk4a_new, aes(x=f1, y=f2, colour=CollarColor)) +
+  geom_hline(yintercept=0, colour="gray70") +
+  geom_vline(xintercept=0, colour="gray70") +
+  geom_text(aes(label=y), size=4)
