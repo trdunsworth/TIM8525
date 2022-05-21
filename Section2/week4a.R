@@ -16,6 +16,10 @@ install.packages("phia")
 install.packages("RVAideMemoire")
 install.packages("DiscriMiner")
 install.packages("sur")
+install.packages('DescTools',repos='http://cran.us.r-project.org')
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install('mixOmics')
 
 # Library Management
 library(tidyverse)
@@ -34,10 +38,12 @@ library(phia)
 library(RVAideMemoire)
 library(DiscriMiner)
 library(sur)
+library(DescTools)
 
 # Bring in the csv file for use
 dfWk4 <- read_csv("D:\\8525\\Section2\\TIM8525.csv")
 dfWk4 <- read_csv("C:\\Users\\tony.dunsworth\\OneDrive - City of Alexandria\\GitHub\\TIM8525\\Section2\\TIM8525.csv")
+dfWk4 <- read_csv("/home/tonyd/Documents/GitHub/TIM8525/Section2/TIM8525.csv")
 
 # Convert columns to factors
 dfWk4$CollarColor <- as_factor(dfWk4$CollarColor)
@@ -184,6 +190,8 @@ qqnorm(dfWk4a_new$FulfillmentDomain)
 bar_collar <- barplot(table(dfWk4a_new$CollarColor))
 bar_gender <- barplot(table(dfWk4a_new$Gender))
 
+dfWk4a_new %>% count(CollarColor,Gender)
+
 # Normality Check
 shapiro_test(dfWk4a_new$ValuesDomain)
 shapiro_test(dfWk4a_new$MediatorDomain)
@@ -225,20 +233,21 @@ dfWk4a_new %>%
 # Establish the number of respondents per Collar Colour
 dfWk4a_new %>% group_by(CollarColor) %>% summarise(N = n())
 dfWk4a_new %>% group_by(Gender) %>% summarise(N = n())
+dfWk4a_new %>% group_by(CollarColor, Gender) %>% summarise(N = n())
 
 # Identify univariate outliers
-dfWk4a_new %>% group_by(CollarColor) %>% identify_outliers(ValuesDomain)
-dfWk4a_new %>% group_by(CollarColor) %>% identify_outliers(MediatorDomain)
-dfWk4a_new %>% group_by(CollarColor) %>% identify_outliers(FulfillmentDomain)
+dfWk4a_new %>% group_by(CollarColor, Gender) %>% identify_outliers(ValuesDomain)
+dfWk4a_new %>% group_by(CollarColor, Gender) %>% identify_outliers(MediatorDomain)
+dfWk4a_new %>% group_by(CollarColor, Gender) %>% identify_outliers(FulfillmentDomain)
 
 # Remove additional outliers
-valOut2 <- dfWk4a_new %>% group_by(CollarColor) %>% identify_outliers(ValuesDomain)
+valOut2 <- dfWk4a_new %>% group_by(CollarColor, Gender) %>% identify_outliers(ValuesDomain)
 dfWk4a_new <- dfWk4a_new[!(dfWk4a_new$ValuesDomain %in% valOut2$ValuesDomain),]
 
-medOut2 <- dfWk4a_new %>% group_by(CollarColor) %>% identify_outliers(MediatorDomain)
+medOut2 <- dfWk4a_new %>% group_by(CollarColor, Gender) %>% identify_outliers(MediatorDomain)
 dfWk4a_new <- dfWk4a_new[!(dfWk4a_new$MediatorDomain %in% medOut2$MediatorDomain),]
 
-fulOut2 <- dfWk4a_new %>% group_by(CollarColor) %>% identify_outliers(FulfillmentDomain)
+fulOut2 <- dfWk4a_new %>% group_by(CollarColor, Gender) %>% identify_outliers(FulfillmentDomain)
 dfWk4a_new <- dfWk4a_new[!(dfWk4a_new$FulfillmentDomain %in% fulOut2$FulfillmentDomain),]
 
 # Check normality assumptions
@@ -274,11 +283,11 @@ levenes.test(dfWk4a_new$ValuesDomain, dfWk4a_new$Gender)
 
 # Factorial Manova
 attach(dfWk4a_new)
-y <- cbind(ValuesDomain, MediatorDomain, FulfillmentDomain)
+y <- cbind(dfWk4a_new$ValuesDomain, dfWk4a_new$MediatorDomain, dfWk4a_new$FulfillmentDomain)
 summary(model_b)
 
 manova_f <- Manova(model_b, test.statistic = "Pillai")
-manova_f2 <- stats::manova(y ~ CollarColor + Gender + CollarColor*Gender)
+manova_f2 <- stats::manova(y ~ dfWk4a_new$CollarColor + dfWk4a_new$Gender + dfWk4a_new$CollarColor*dfWk4a_new$Gender)
 summary(manova_f2)
 summary.aov(manova_f2)
 
@@ -294,3 +303,40 @@ ggplot(data=dfWk4a_new, aes(x=f1, y=f2, colour=CollarColor)) +
   geom_hline(yintercept=0, colour="gray70") +
   geom_vline(xintercept=0, colour="gray70") +
   geom_text(aes(label=y), size=4)
+
+#make this example reproducible
+set.seed(42)
+
+#Use 70% of dataset as training set and remaining 30% as testing set
+sample <- sample(c(TRUE, FALSE), nrow(dfWk4a_new), replace=TRUE, prob=c(0.7,0.3))
+train <- dfWk4a_new[sample, ]
+test <- dfWk4a_new[!sample, ] 
+
+model_c <- lda(CollarColor~., data=train)
+model_c
+
+#use LDA model to make predictions on test data
+predicted <- predict(model_c, test)
+
+names(predicted)
+head(predicted$class)
+head(predicted$posterior)
+head(predicted$x)
+mean(predicted$class==test$CollarColor)
+
+#define data to plot
+lda_plot <- cbind(train, predict(model_c)$x)
+
+#create plot
+ggplot(lda_plot, aes(LD1, LD2)) +
+  geom_point(aes(color = CollarColor))
+ggplot(lda_plot, aes(LD1, LD3)) +
+  geom_point(aes(color = CollarColor))
+ggplot(lda_plot, aes(LD1, LD4)) +
+  geom_point(aes(color = CollarColor))
+ggplot(lda_plot, aes(LD2, LD3)) +
+  geom_point(aes(color = CollarColor))
+ggplot(lda_plot, aes(LD2, LD4)) +
+  geom_point(aes(color = CollarColor))
+ggplot(lda_plot, aes(LD3, LD4)) +
+  geom_point(aes(color = CollarColor))
