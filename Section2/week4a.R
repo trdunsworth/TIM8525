@@ -20,6 +20,7 @@ install.packages('DescTools',repos='http://cran.us.r-project.org')
 if (!requireNamespace("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
 BiocManager::install('mixOmics')
+install.packages("janitor")
 
 # Library Management
 library(tidyverse)
@@ -39,6 +40,7 @@ library(RVAideMemoire)
 library(DiscriMiner)
 library(sur)
 library(DescTools)
+library(janitor)
 
 # Bring in the csv file for use
 dfWk4 <- read_csv("D:\\8525\\Section2\\TIM8525.csv")
@@ -81,6 +83,14 @@ mardia(dfWk4$ValuesDomain)
 mardia(dfWk4$MediatorDomain)
 mardia(dfWk4$FulfillmentDomain)
 
+varlist <- cbind(dfWk4$ValuesDomain, dfWk4$MediatorDomain, dfWk4$FulfillmentDomain)
+dfWk4_summary1 <- dplyr::summarize(dplyr::across(varlist, list(min = min, q25 = ~quantile(., 0.25), median = median, q75 = ~quantile(., 0.75), iqr = IQR, max = max, mean = mean, sd = sd, skew = skew)))
+dfWk4.summary.extended <- dfWk4 %>%
+  dplyr::select(ValuesDomain, MediatorDomain, FulfillmentDomain) %>%
+  psych::describe(quant=c(.25,.75)) %>%
+  as_tibble(rownames="rowname")  %>%
+  print()
+
 # Basic Visualizations
 hist(dfWk4$ValuesDomain)
 hist(dfWk4$MediatorDomain)
@@ -96,6 +106,9 @@ qqnorm(dfWk4$FulfillmentDomain)
 
 bar_collar <- barplot(table(dfWk4$CollarColor))
 bar_gender <- barplot(table(dfWk4$Gender))
+
+dfWk4 %>% count(CollarColor,Gender)
+tabyl(dfWk4, CollarColor, Gender)
 
 # Normality Check
 shapiro_test(dfWk4$ValuesDomain)
@@ -174,6 +187,14 @@ mardia(dfWk4a_new$ValuesDomain)
 mardia(dfWk4a_new$MediatorDomain)
 mardia(dfWk4a_new$FulfillmentDomain)
 
+dfWk4a_new.summary.extended <- dfWk4a_new %>%
+  dplyr::select(ValuesDomain, MediatorDomain, FulfillmentDomain) %>%
+  psych::describe(quant=c(.25,.75)) %>%
+  as_tibble(rownames="rowname")  %>%
+  print()
+
+tabyl(dfWk4a_new, CollarColor, Gender)
+
 # Basic Visualizations
 hist(dfWk4a_new$ValuesDomain)
 hist(dfWk4a_new$MediatorDomain)
@@ -198,17 +219,11 @@ shapiro_test(dfWk4a_new$MediatorDomain)
 shapiro_test(dfWk4a_new$FulfillmentDomain)
 
 # Summarise variables by the independent variable
-dfWk4a_new %>% group_by(CollarColor) %>% summarise_at(c("ValuesDomain", "MediatorDomain", "FulfillmentDomain"), mean, na.rm=TRUE)
-dfWk4a_new %>% group_by(CollarColor) %>% summarise_at(c("ValuesDomain", "MediatorDomain", "FulfillmentDomain"), median, na.rm=TRUE)
-dfWk4a_new %>% group_by(CollarColor) %>% summarise_at(c("ValuesDomain", "MediatorDomain", "FulfillmentDomain"), sd, na.rm=TRUE)
-dfWk4a_new %>% group_by(CollarColor) %>% summarise_at(c("ValuesDomain", "MediatorDomain", "FulfillmentDomain"), IQR, na.rm=TRUE)
-dfWk4a_new %>% group_by(CollarColor) %>% summarise_at(c("ValuesDomain", "MediatorDomain", "FulfillmentDomain"), mad, na.rm=TRUE)
-
-dfWk4a_new %>% group_by(Gender) %>% summarise_at(c("ValuesDomain", "MediatorDomain", "FulfillmentDomain"), mean, na.rm=TRUE)
-dfWk4a_new %>% group_by(Gender) %>% summarise_at(c("ValuesDomain", "MediatorDomain", "FulfillmentDomain"), median, na.rm=TRUE)
-dfWk4a_new %>% group_by(Gender) %>% summarise_at(c("ValuesDomain", "MediatorDomain", "FulfillmentDomain"), sd, na.rm=TRUE)
-dfWk4a_new %>% group_by(Gender) %>% summarise_at(c("ValuesDomain", "MediatorDomain", "FulfillmentDomain"), IQR, na.rm=TRUE)
-dfWk4a_new %>% group_by(Gender) %>% summarise_at(c("ValuesDomain", "MediatorDomain", "FulfillmentDomain"), mad, na.rm=TRUE)
+dfWk4a_new %>% group_by(CollarColor, Gender) %>% summarise_at(c("ValuesDomain", "MediatorDomain", "FulfillmentDomain"), mean, na.rm=TRUE)
+dfWk4a_new %>% group_by(CollarColor, Gender) %>% summarise_at(c("ValuesDomain", "MediatorDomain", "FulfillmentDomain"), median, na.rm=TRUE)
+dfWk4a_new %>% group_by(CollarColor, Gender) %>% summarise_at(c("ValuesDomain", "MediatorDomain", "FulfillmentDomain"), sd, na.rm=TRUE)
+dfWk4a_new %>% group_by(CollarColor, Gender) %>% summarise_at(c("ValuesDomain", "MediatorDomain", "FulfillmentDomain"), IQR, na.rm=TRUE)
+dfWk4a_new %>% group_by(CollarColor, Gender) %>% summarise_at(c("ValuesDomain", "MediatorDomain", "FulfillmentDomain"), mad, na.rm=TRUE)
 
 # Boxplot by Independent Variable
 ggboxplot(
@@ -288,8 +303,13 @@ summary(model_b)
 
 manova_f <- Manova(model_b, test.statistic = "Pillai")
 manova_f2 <- stats::manova(y ~ dfWk4a_new$CollarColor + dfWk4a_new$Gender + dfWk4a_new$CollarColor*dfWk4a_new$Gender)
+summary(manova_f)
 summary(manova_f2)
+summary.aov(manova_f)
 summary.aov(manova_f2)
+sum2 <- aov(manova_f2)
+TukeyHSD(sum2)
+plot(manova_f2)
 
 wk4_dda1 <- desDA(y, dfWk4a_new$CollarColor)
 wk4_dda1
