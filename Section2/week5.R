@@ -26,6 +26,7 @@ install.packages("nlme")
 install.packages("funModeling")
 install.packages("inspectdf")
 install.packages("dlookr")
+install.packages("viridis")
 
 # Library Management
 library(tidyverse)
@@ -51,6 +52,7 @@ library(nlme)
 library(funModeling)
 library(inspectdf)
 library(dlookr)
+library(viridis)
 
 # Bring in the csv file for use
 dfWk5 <- read_csv("D:\\8525\\Section2\\TIM8525.csv")
@@ -70,6 +72,8 @@ levels(dfWk5$CollarColor) <- c("Blue","Pink","Grey","White","Gold")
 levels(dfWk5$Gender) <- c("Male", "Female")
 levels(dfWk5$Employment) <- c("FullTime", "PartTime")
 levels(dfWk5$Country) <- c("US", "Canada", "UK", "Ireland", "India", "Other")
+levels(dfWk5$Education) <- c("Less than HS", "Some HS", "HS Grad", "Some Uni", "Uni Grad", "Grad/Prof Degree")
+levels(dfWk5$Age) <- c("18 to 24", "25 to 35", "36 to 45", "46 to 55", "56 to 65", "Over 65")
 
 # Column Removal
 # Remove CountryOther since it has many missing values
@@ -91,8 +95,28 @@ plot_num(dfWk5)
 dfWk5 %>% inspect_cat %>% show_plot(high_cardinality = 1, col_palette = 1)
 out1 <- diagnose_outlier(dfWk5)
 plot_outlier(dfWk5)
-bar_collar <- barplot(table(dfWk5$CollarColor))
-bar_gender <- barplot(table(dfWk5$Gender))
-bar_emp <- barplot(table(dfWk5$Employment))
-bar_edu <- barplot(table(dfWk5$Education))
-bar_country <- barplot(table(dfWk5$Country))
+bar_collar <- barplot(table(dfWk5$CollarColor), col = c("#0000ff", "#ff99cc", "#c0c0c0", "#fffaf0", "#ffd700"))
+bar_gender <- barplot(table(dfWk5$Gender), col = viridis(2))
+bar_emp <- barplot(table(dfWk5$Employment), col = viridis(2))
+bar_edu <- barplot(table(dfWk5$Education), col = viridis(6))
+bar_country <- barplot(table(dfWk5$Country), col = plasma(6))
+
+tabyl(dfWk5, CollarColor, Gender)
+tabyl(dfWk5, CollarColor, Education)
+tabyl(dfWk5, CollarColor, Country)
+
+# Basic Visualizations
+hist(dfWk5$ValuesDomain, col = viridis(15))
+hist(dfWk5$MediatorDomain, col = viridis(8))
+hist(dfWk5$FulfillmentDomain, col = viridis(20))
+
+boxplot(dfWk5$ValuesDomain, col = "#1c5789")
+boxplot(dfWk4a_new$MediatorDomain)
+boxplot(dfWk4a_new$FulfillmentDomain)
+
+qqnorm(dfWk5$ValuesDomain, col = viridis(1))
+qqnorm(dfWk4a_new$MediatorDomain)
+qqnorm(dfWk4a_new$FulfillmentDomain)
+
+# Additional EDA
+dfWk5 %>% group_by(CollarColor, Gender) %>% summarise_at(c("ValuesDomain", "MediatorDomain", "FulfillmentDomain"), mean, na.rm=TRUE)
