@@ -27,6 +27,7 @@ install.packages("funModeling")
 install.packages("inspectdf")
 install.packages("dlookr")
 install.packages("viridis")
+install.packages("merTools")
 
 # Library Management
 library(tidyverse)
@@ -53,6 +54,8 @@ library(funModeling)
 library(inspectdf)
 library(dlookr)
 library(viridis)
+library(lme4)
+library(merTools)
 
 # Bring in the csv file for use
 dfWk5 <- read_csv("D:\\8525\\Section2\\TIM8525.csv")
@@ -115,8 +118,60 @@ boxplot(dfWk4a_new$MediatorDomain)
 boxplot(dfWk4a_new$FulfillmentDomain)
 
 qqnorm(dfWk5$ValuesDomain, col = viridis(1))
-qqnorm(dfWk4a_new$MediatorDomain)
-qqnorm(dfWk4a_new$FulfillmentDomain)
+qqnorm(dfWk4a_new$MediatorDomain, col = viridis(1))
+qqnorm(dfWk4a_new$FulfillmentDomain, col = viridis(1))
 
 # Additional EDA
 dfWk5 %>% group_by(CollarColor, Gender) %>% summarise_at(c("ValuesDomain", "MediatorDomain", "FulfillmentDomain"), mean, na.rm=TRUE)
+
+# Normality Check
+shapiro_test(dfWk5$ValuesDomain)
+shapiro_test(dfWk5$MediatorDomain)
+shapiro_test(dfWk5$FulfillmentDomain)
+
+# Remove outliers to see if it normalizes data better
+dfWk5a <- subset(dfWk5, dfWk5$ValuesDomain > 5)
+dfWk5a <- subset(dfWk5a, dfWk5a$MediatorDomain > 5)
+dfWk5a <- subset(dfWk5a, dfWk5a$FulfillmentDomain > 5)
+
+# Second Normality Check
+shapiro_test(dfWk5a$ValuesDomain)
+shapiro_test(dfWk5a$MediatorDomain)
+shapiro_test(dfWk5a$FulfillmentDomain)
+
+out2 <- diagnose_outlier(dfWk5a)
+plot_outlier(dfWk5a)
+
+# HLM tests for the data
+model1 <- gls(ValuesDomain~1, data = dfWk5, method = "ML", na.action = "na.omit")
+summary(model1)
+is.factor(dfWk5$Age)
+
+model2 = lme(ValuesDomain~1, data = dfWk5, method = "ML", na.action = "na.omit", random = ~1|Age)
+summary(model2)
+
+anova(model1, model2)
+
+model2.1<-lmer(ValuesDomain~1+(1|Age), REML = FALSE, data = dfWk5)
+summary(model2.1)
+ICC(outcome = "ValuesDomain", group = "Age", data = dfWk5)
+confint(model2.1)
+
+model3 = lme(ValuesDomain~ Gender, data = dfWk5, method = "ML", na.action = "na.omit", random = ~1|Age)
+summary(model3)
+
+anova(model3, model2)
+
+model3.1 <-lmer(ValuesDomain~1+Gender+(1|Age), REML = FALSE, data = dfWk5)
+summary(model3.1)
+
+model4= lme(ValuesDomain~ Gender, data = dfWk5, method = "ML", na.action = "na.omit", random = ~Gender|Age, control = lmeControl(msMaxIter = 200))
+summary(model4)
+
+anova(model3, model4)
+
+model3withBPD<-lme(ValuesDomain~Gender+Employment+Employment*Gender,
+                   data = dfWk5, method = "ML", na.action = "na.omit", random = ~1|Age)
+summary(model3withBPD)
+
+anova(model3, model3withBPD)
